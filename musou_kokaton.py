@@ -46,6 +46,8 @@ class Bird(pg.sprite.Sprite):
         pg.K_LEFT: (-1, 0),
         pg.K_RIGHT: (+1, 0),
     }
+    state_now = "normal" # こうかとんの状態
+    hyper_life = -1 # 肉体強化の発動時間
 
     def __init__(self, num: int, xy: tuple[int, int]):
         """
@@ -80,6 +82,15 @@ class Bird(pg.sprite.Sprite):
         """
         self.image = pg.transform.rotozoom(pg.image.load(f"ex04/fig/{num}.png"), 0, 2.0)
         screen.blit(self.image, self.rect)
+    
+    def change_state(self, state, life):
+        """
+        こうかとんの状態state_nowと肉体強化の発動時間hyper_lifeを引数に基づき設定する
+        引数1 state：こうかとんの状態を表す変数
+        引数2 life：発動時間
+        """
+        self.state_now = state
+        self.hyper_life = life
 
     def update(self, key_lst: list[bool], screen: pg.Surface):
         """
@@ -87,6 +98,7 @@ class Bird(pg.sprite.Sprite):
         引数1 key_lst：押下キーの真理値リスト
         引数2 screen：画面Surface
         """
+
         sum_mv = [0, 0]
         if key_lst[pg.K_LSHIFT]:  # 追加機能1、ｺｳｿｸｶ(91行目から94行目)
             self.speed = 20
@@ -103,6 +115,12 @@ class Bird(pg.sprite.Sprite):
                     self.rect.move_ip(-self.speed*mv[0], -self.speed*mv[1])
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
             self.dire = tuple(sum_mv)
+            self.image = self.imgs[self.dire]
+        # もしこうかとんの状態がhyperだったら画像を切り替える
+        if self.state_now == "hyper":
+            self.image = pg.transform.laplacian(self.image)
+            self.hyper_life -= 1
+        else:
             self.image = self.imgs[self.dire]
         screen.blit(self.image, self.rect)
     
@@ -371,6 +389,7 @@ def main():
     beam_num = 5  # 弾幕のビームの数
 
     bird = Bird(3, (900, 400))
+    bird.change_state("normal", -1) # こうかとんの状態を初期化
     bombs = pg.sprite.Group()
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
@@ -395,6 +414,9 @@ def main():
                     beams.add(Beam(bird, 0))  # Beamグループにビームの情報を追加
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+            if event.type == pg.KEYDOWN and event.key == pg.K_RSHIFT and score.score >= 100:
+                bird.change_state("hyper", 500)
+                score.score_up(-100)
             if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.score >= 200:
                 #リターンキー（エンターキー）が押されたら重力場の生成
                 score.score_up(-200) #スコア200を減らす
@@ -427,6 +449,16 @@ def main():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.score_up(1)  # 1点アップ
         
+        for bomb in pg.sprite.spritecollide(bird, bombs, True):
+            if bird.state_now == "hyper": # もしこうかとんの状態がhyperだったら
+                exps.add(Explosion(bomb, 50)) # 爆発エフェクト
+                score.score_up(1) # 1点アップ
+            else:
+                bird.change_img(8, screen) # こうかとん悲しみエフェクト
+                score.update(screen)
+                pg.display.update()
+                time.sleep(2)
+                return       
         for bomb in pg.sprite.groupcollide(bombs,shields, True, False).keys():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.score_up(1)  # 1点アップ
@@ -442,19 +474,13 @@ def main():
         for emy in pg.sprite.groupcollide(emys, NeoGra, True, False).keys():
             exps.add(Explosion(emy, 100)) # 爆発エフェクト
 
-        if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
-            bird.change_img(8, screen) # こうかとん悲しみエフェクト
-            score.update(screen)
-            pg.display.update()
-            time.sleep(2)
-            return
-        
-
         NeoGra.update() 
         NeoGra.draw(screen) 
         gravitys.update()
         gravitys.draw(screen)
         bird.update(key_lst, screen)
+        if bird.hyper_life < 0:
+            bird.change_state("nomal", -1)
         beams.update()
         beams.draw(screen)
         emys.update()
