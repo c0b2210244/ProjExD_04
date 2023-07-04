@@ -251,25 +251,25 @@ class Score:
 class NeoGravity(pg.sprite.Sprite):
     """
     画面上にある爆弾、敵機をすべて破壊するクラス
+    引数：発動時間：任意のint 
     条件：リターンキー（エンターキー）を押す かつ スコアが200点以上
     消費スコア：200
     """
     def __init__(self, life:int):
         super().__init__()
-        self.image = pg.Surface(WIDTH, HEIGHT)
-        gracolor = (0, 0, 0)
-        pg.draw.rect(self.image, gracolor, 0, 0, WIDTH, HEIGHT)
+        self.image = pg.Surface((1600, 900))
+        gracolor = (0, 0, 0) #重力場は黒色に
+        pg.draw.rect(self.image, gracolor, (0, 0, WIDTH, HEIGHT))
         self.rect = self.image.get_rect()
-        self.image.set_colorkey(0, 0, 0)
+        self.image.set_alpha(200) #透明度を200に設定
         self.life = life
 
     def update(self):
         """
-        
+        発動時間が経ったら削除する
         """
-        self.life -= 1
-        self.image = self.imgs[self.life//10%2]
-        if self.life < 0:
+        self.life -= 1 #更新するたびにlifeを減らす
+        if self.life < 0: #lifeが0になったら削除
             self.kill()
 
 
@@ -295,8 +295,10 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
-            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
-                NeoGra.add(NeoGravity(bird))
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.score >= 200:
+                #リターンキー（エンターキー）が押されたら重力場の生成
+                score.score_up(-200) #スコア200を減らす
+                NeoGra.add(NeoGravity(400)) #インスタンスをグループに
 
         screen.blit(bg_img, [0, 0])
 
@@ -317,10 +319,10 @@ def main():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.score_up(1)  # 1点アップ
 
-        for NeoGra in pg.sprite.groupcollide(NeoGra, bombs, False, True).keys():
+        for bomb in pg.sprite.groupcollide(bombs, NeoGra, True, False).keys():
             exps.add(Explosion(bomb, 50)) # 爆発エフェクト
 
-        for NeoGra in pg.sprite.groupcollide(NeoGra, emy, False, True).keys():
+        for emy in pg.sprite.groupcollide(emys, NeoGra, True, False).keys():
             exps.add(Explosion(emy, 100)) # 爆発エフェクト
 
         if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
@@ -330,18 +332,18 @@ def main():
             time.sleep(2)
             return
 
+        NeoGra.update() 
+        NeoGra.draw(screen) 
         bird.update(key_lst, screen)
         beams.update()
         beams.draw(screen)
         emys.update()
         emys.draw(screen)
         bombs.update()
-        bombs.draw(screen)
+        bombs.draw(screen)  
         exps.update()
         exps.draw(screen)
         score.update(screen)
-        NeoGra.draw(screen)
-        NeoGra.update()
         pg.display.update()
         tmr += 1
         clock.tick(50)
