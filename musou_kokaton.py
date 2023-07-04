@@ -149,17 +149,18 @@ class Beam(pg.sprite.Sprite):
     """
     ビームに関するクラス
     """
-    def __init__(self, bird: Bird):
+    def __init__(self, bird: Bird, angle=0):
         """
         ビーム画像Surfaceを生成する
         引数 bird：ビームを放つこうかとん
         """
         super().__init__()
         self.vx, self.vy = bird.get_direction()
-        angle = math.degrees(math.atan2(-self.vy, self.vx))
-        self.image = pg.transform.rotozoom(pg.image.load(f"ex04/fig/beam.png"), angle, 2.0)
-        self.vx = math.cos(math.radians(angle))
-        self.vy = -math.sin(math.radians(angle))
+        angle_res = math.degrees(math.atan2(-self.vy, self.vx))
+        angle_res += angle  # 計算して生成したビームの角度を考慮
+        self.image = pg.transform.rotozoom(pg.image.load(f"ex04/fig/beam.png"), angle_res, 2.0)  # ここの編集はangle -> angle_resに変数名を変えただけ
+        self.vx = math.cos(math.radians(angle_res))  # ここの編集はangle -> angle_resに変数名を変えただけ
+        self.vy = -math.sin(math.radians(angle_res))  # ここの編集はangle -> angle_resに変数名を変えただけ
         self.rect = self.image.get_rect()
         self.rect.centery = bird.rect.centery+bird.rect.height*self.vy
         self.rect.centerx = bird.rect.centerx+bird.rect.width*self.vx
@@ -310,11 +311,37 @@ class Gravity(pg.sprite.Sprite):
             self.kill()
 
 
+class NeoBeam:
+    def __init__(self, bird: Bird, num: int):
+        """
+        ビームを発射
+        引数1 bird：こうかとん
+        引数2 num：ビーム数
+        """
+        self.bird = bird
+        self.num = num
+    
+    def gen_beams(self):
+        """
+        ビームの角度を計算
+        引数なし
+        戻り値 neo_beams：こうかとんと各ビームの角度の情報のリスト
+        """
+        diff_angle = 100 / ( self.num - 1)  # 隣り合う2つのビームの角度の差を計算
+        neo_beams = list()  # ビームの情報を入れるリストを用意
+        for i in range(self.num):  # 引数として受け取った数だけビームを1つずつ生成
+            neo_beams.append([self.bird, (diff_angle * i) - 50])  #2つ上の行で用意したリストにビームの情報を追加
+        
+        return neo_beams  # 戻り値としてビームの情報をまとめたリストを返す
+
+
+
 def main():
     pg.display.set_caption("真！こうかとん無双")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     bg_img = pg.image.load("ex04/fig/pg_bg.jpg")
     score = Score()
+    beam_num = 5  # 弾幕のビームの数
 
     bird = Bird(3, (900, 400))
     bombs = pg.sprite.Group()
@@ -331,6 +358,13 @@ def main():
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return 0
+            if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:  # ビームを打つ
+                key_lst = pg.key.get_pressed()
+                if key_lst[pg.K_LSHIFT]:  # 弾幕
+                    for beam in NeoBeam(bird, beam_num).gen_beams():  # beam_numの数だけビームを生成
+                        beams.add(Beam(beam[0], beam[1]))  # Beamグループに生成したビームの情報を追加
+                else:  # 通常
+                    beams.add(Beam(bird, 0))  # Beamグループにビームの情報を追加
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
             if event.type == pg.KEYDOWN and event.key == pg.K_CAPSLOCK and len(shields) == 0: #CAPSLOCKキー押す出る。シールドは一つまでしか出ない
