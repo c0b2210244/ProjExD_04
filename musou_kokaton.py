@@ -88,6 +88,10 @@ class Bird(pg.sprite.Sprite):
         引数2 screen：画面Surface
         """
         sum_mv = [0, 0]
+        if key_lst[pg.K_LSHIFT]:  # 追加機能1、ｺｳｿｸｶ(91行目から94行目)
+            self.speed = 20
+        else:
+            self.speed = 10
         for k, mv in __class__.delta.items():
             if key_lst[k]:
                 self.rect.move_ip(+self.speed*mv[0], +self.speed*mv[1])
