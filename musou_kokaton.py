@@ -248,6 +248,30 @@ class Score:
         self.image = self.font.render(f"Score: {self.score}", 0, self.color)
         screen.blit(self.image, self.rect)
 
+class NeoGravity(pg.sprite.Sprite):
+    """
+    画面上にある爆弾、敵機をすべて破壊するクラス
+    条件：リターンキー（エンターキー）を押す かつ スコアが200点以上
+    消費スコア：200
+    """
+    def __init__(self, life:int):
+        super().__init__()
+        self.image = pg.Surface(WIDTH, HEIGHT)
+        gracolor = (0, 0, 0)
+        pg.draw.rect(self.image, gracolor, 0, 0, WIDTH, HEIGHT)
+        self.rect = self.image.get_rect()
+        self.image.set_colorkey(0, 0, 0)
+        self.life = life
+
+    def update(self):
+        """
+        
+        """
+        self.life -= 1
+        self.image = self.imgs[self.life//10%2]
+        if self.life < 0:
+            self.kill()
+
 
 def main():
     pg.display.set_caption("真！こうかとん無双")
@@ -260,6 +284,7 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    NeoGra = pg.sprite.Group()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -270,6 +295,9 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
+                NeoGra.add(NeoGravity(bird))
+
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -289,6 +317,12 @@ def main():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.score_up(1)  # 1点アップ
 
+        for NeoGra in pg.sprite.groupcollide(NeoGra, bombs, False, True).keys():
+            exps.add(Explosion(bomb, 50)) # 爆発エフェクト
+
+        for NeoGra in pg.sprite.groupcollide(NeoGra, emy, False, True).keys():
+            exps.add(Explosion(emy, 100)) # 爆発エフェクト
+
         if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
             bird.change_img(8, screen) # こうかとん悲しみエフェクト
             score.update(screen)
@@ -306,6 +340,8 @@ def main():
         exps.update()
         exps.draw(screen)
         score.update(screen)
+        NeoGra.draw(screen)
+        NeoGra.update()
         pg.display.update()
         tmr += 1
         clock.tick(50)
