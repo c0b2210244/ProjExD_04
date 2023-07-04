@@ -88,6 +88,10 @@ class Bird(pg.sprite.Sprite):
         引数2 screen：画面Surface
         """
         sum_mv = [0, 0]
+        if key_lst[pg.K_LSHIFT]:  # 追加機能1、ｺｳｿｸｶ(91行目から94行目)
+            self.speed = 20
+        else:
+            self.speed = 10
         for k, mv in __class__.delta.items():
             if key_lst[k]:
                 self.rect.move_ip(+self.speed*mv[0], +self.speed*mv[1])
@@ -249,6 +253,63 @@ class Score:
         self.image = self.font.render(f"Score: {self.score}", 0, self.color)
         screen.blit(self.image, self.rect)
 
+class Shield(pg.sprite.Sprite):
+    """
+    防御壁に関するクラス
+    """
+    def __init__(self, bird: Bird,life: int):
+        super().__init__()
+        vx,vy =bird.dire
+        theta = math.atan2(-vy, vx)
+        angle = math.degrees(theta)
+        self.image = pg.Surface((20, bird.rect.height* 2 ))#防御壁の大きさ　横２０　縦
+        self.image = pg.transform.rotozoom(self.image, angle, 1.0)#効果トンの向きに応じて壁を出す向きを決める。
+        pg.draw.rect(self.image, (0, 0, 0), pg.Rect(0, 0 , 20, bird.rect.height*2))#描画する防御壁の情報　黒　横：２０　縦：こうかとんの２倍
+        self.rect = self.image.get_rect()
+        self.rect = self.image.get_rect()
+
+        self.rect.centerx = bird.rect.centerx + bird.rect.width*vx #向いている方向に応じて壁を出すx座標を設定する
+        self.rect.centery = bird.rect.centery +bird.rect.height*vy #向いている方向に応じて壁を出すy座標を設定する
+        self.life = life
+
+        
+        
+
+    def update(self):
+        """
+        発動時間を１減算し、発動時間中は防御壁を有効化する。
+        """
+        self.life -= 1
+        if self.life < 0:
+            self.kill()
+
+
+class Gravity(pg.sprite.Sprite):
+    """
+    重力球のクラス。Tabキーを押すと１つ作成する\n
+    引数：こうかとんインスタンス:Bird, 半径:float, 発動時間:int\n
+    戻り値：Gravityインスタンス
+    """
+
+    def __init__(self, bird: Bird, size: float, life: int) -> None:
+        super().__init__()
+        # 引数をフィールドに設定
+        self.size = size
+        self.life = life
+        # imageとrectの設定
+        self.image = pg.Surface((self.size*2, self.size*2))
+        self.rect = self.image.get_rect()
+        self.rect.center = bird.rect.center
+        self.image.fill((0, 0, 255)) # いったん背景を青に
+        pg.draw.circle(self.image, (0, 0, 0), (self.size, self.size), self.size) # 重力球（真っ黒）を描画
+        self.image.set_alpha(200) # Surfaceの透明度を200に設定
+        self.image.set_colorkey((0, 0, 255)) # 青色を透過色に設定
+ 
+    def update(self) -> None:
+        self.life -= 1 # 更新されるたびlifeを減少
+        if self.life < 0: # 効果時間終了で削除
+            self.kill()
+
 
 class NeoBeam:
     def __init__(self, bird: Bird, num: int):
@@ -287,6 +348,8 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    shields = pg.sprite.Group()
+    gravitys = pg.sprite.Group() # 重力球グループ
 
     tmr = 0
     clock = pg.time.Clock()
@@ -302,7 +365,16 @@ def main():
                         beams.add(Beam(beam[0], beam[1]))  # Beamグループに生成したビームの情報を追加
                 else:  # 通常
                     beams.add(Beam(bird, 0))  # Beamグループにビームの情報を追加
-
+            if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
+                beams.add(Beam(bird))
+            if event.type == pg.KEYDOWN and event.key == pg.K_CAPSLOCK and len(shields) == 0: #CAPSLOCKキー押す出る。シールドは一つまでしか出ない
+                if score.score >=50:
+                    shields.add(Shield(bird, 400)) 
+                    score.score_up(-50)
+            if event.type == pg.KEYDOWN and event.key == pg.K_TAB and score.score >= 50:
+                # Tabキーが押されたら重力球を生成
+                score.score_up(-50) # スコア50消費
+                gravitys.add(Gravity(bird, 200, 500)) # インスタンスをグループに追加
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -321,6 +393,15 @@ def main():
         for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.score_up(1)  # 1点アップ
+        
+        for bomb in pg.sprite.groupcollide(bombs,shields, True, False).keys():
+            exps.add(Explosion(bomb, 50))  # 爆発エフェクト
+            score.score_up(1)  # 1点アップ
+
+        # 重力球版衝突判定
+        for bomb in pg.sprite.groupcollide(bombs, gravitys, True, False).keys():
+            exps.add(Explosion(bomb, 50))  # 爆発エフェクト
+            score.score_up(1)  # 1点アップ
 
         if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
             bird.change_img(8, screen) # こうかとん悲しみエフェクト
@@ -328,7 +409,10 @@ def main():
             pg.display.update()
             time.sleep(2)
             return
+        
 
+        gravitys.update()
+        gravitys.draw(screen)
         bird.update(key_lst, screen)
         beams.update()
         beams.draw(screen)
@@ -339,6 +423,8 @@ def main():
         exps.update()
         exps.draw(screen)
         score.update(screen)
+        shields.update()
+        shields.draw(screen)
         pg.display.update()
         tmr += 1
         clock.tick(50)
