@@ -298,7 +298,7 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
-            if event.type == pg.KEYDOWN and event.key == pg.K_TAB: #and score.score >= 50:
+            if event.type == pg.KEYDOWN and event.key == pg.K_TAB and score.score >= 50:
                 # Tabキーが押されたら重力球を生成
                 score.score_up(-50) # スコア50消費
                 gravitys.add(Gravity(bird, 200, 500)) # インスタンスをグループに追加
