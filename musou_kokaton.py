@@ -248,6 +248,36 @@ class Score:
         self.image = self.font.render(f"Score: {self.score}", 0, self.color)
         screen.blit(self.image, self.rect)
 
+class Shield(pg.sprite.Sprite):
+    """
+    防御壁に関するクラス
+    """
+    def __init__(self, bird: Bird,life: int):
+        super().__init__()
+        vx,vy =bird.dire
+        theta = math.atan2(-vy, vx)
+        angle = math.degrees(theta)
+        self.image = pg.Surface((20, bird.rect.height* 2 ))#防御壁の大きさ　横２０　縦
+        self.image = pg.transform.rotozoom(self.image, angle, 1.0)#効果トンの向きに応じて壁を出す向きを決める。
+        pg.draw.rect(self.image, (0, 0, 0), pg.Rect(0, 0 , 20, bird.rect.height*2))#描画する防御壁の情報　黒　横：２０　縦：こうかとんの２倍
+        self.rect = self.image.get_rect()
+        self.rect = self.image.get_rect()
+
+        self.rect.centerx = bird.rect.centerx + bird.rect.width*vx #向いている方向に応じて壁を出すx座標を設定する
+        self.rect.centery = bird.rect.centery +bird.rect.height*vy #向いている方向に応じて壁を出すy座標を設定する
+        self.life = life
+
+        
+        
+
+    def update(self):
+        """
+        発動時間を１減算し、発動時間中は防御壁を有効化する。
+        """
+        self.life -= 1
+        if self.life < 0:
+            self.kill()
+
 
 class Gravity(pg.sprite.Sprite):
     """
@@ -287,6 +317,7 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    shields = pg.sprite.Group()
     gravitys = pg.sprite.Group() # 重力球グループ
 
     tmr = 0
@@ -298,11 +329,14 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+            if event.type == pg.KEYDOWN and event.key == pg.K_CAPSLOCK and len(shields) == 0: #CAPSLOCKキー押す出る。シールドは一つまでしか出ない
+                if score.score >=50:
+                    shields.add(Shield(bird, 400)) 
+                    score.score_up(-50)
             if event.type == pg.KEYDOWN and event.key == pg.K_TAB and score.score >= 50:
                 # Tabキーが押されたら重力球を生成
                 score.score_up(-50) # スコア50消費
                 gravitys.add(Gravity(bird, 200, 500)) # インスタンスをグループに追加
-
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -321,6 +355,10 @@ def main():
         for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.score_up(1)  # 1点アップ
+        
+        for bomb in pg.sprite.groupcollide(bombs,shields, True, False).keys():
+            exps.add(Explosion(bomb, 50))  # 爆発エフェクト
+            score.score_up(1)  # 1点アップ
 
         # 重力球版衝突判定
         for bomb in pg.sprite.groupcollide(bombs, gravitys, True, False).keys():
@@ -333,6 +371,7 @@ def main():
             pg.display.update()
             time.sleep(2)
             return
+        
 
         gravitys.update()
         gravitys.draw(screen)
@@ -346,6 +385,8 @@ def main():
         exps.update()
         exps.draw(screen)
         score.update(screen)
+        shields.update()
+        shields.draw(screen)
         pg.display.update()
         tmr += 1
         clock.tick(50)
